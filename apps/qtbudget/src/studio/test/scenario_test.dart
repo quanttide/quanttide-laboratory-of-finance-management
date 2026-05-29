@@ -15,29 +15,42 @@ void main() {
   test('完整场景：研发部备用金日记账', () {
     final journal = Journal(id: 'j_q3', name: '研发部备用金');
     storage.saveJournals([journal]);
-    print('✓ 创建日记账：${journal.name}');
 
+    // 简单流水模式：每笔分录只用一个方向
+    // 借方 = 资金流入（收入、存入），贷方 = 资金流出（支出）
     final entries = [
-      JournalEntry(id: 'je01', journalId: journal.id, entryDate: DateTime(2026, 7, 1), description: '期初转入', debit: 50000, credit: 0),
-      JournalEntry(id: 'je02', journalId: journal.id, entryDate: DateTime(2026, 7, 15), description: 'GPU 云服务器', debit: 15000, credit: 0),
-      JournalEntry(id: 'je03', journalId: journal.id, entryDate: DateTime(2026, 8, 10), description: '二手设备转让', debit: 0, credit: 2000),
-      JournalEntry(id: 'je04', journalId: journal.id, entryDate: DateTime(2026, 8, 20), description: '办公用品', debit: 800, credit: 0),
+      JournalEntry(
+        id: 'je01', journalId: journal.id, description: '公司拨入备用金',
+        lines: [JournalEntryLine(id: 'l01', type: LineType.debit, amount: 50000)],
+      ),
+      JournalEntry(
+        id: 'je02', journalId: journal.id, description: 'GPU 云服务器',
+        lines: [JournalEntryLine(id: 'l02', type: LineType.credit, amount: 15000)],
+      ),
+      JournalEntry(
+        id: 'je03', journalId: journal.id, description: '二手设备转让收入',
+        lines: [JournalEntryLine(id: 'l03', type: LineType.debit, amount: 2000)],
+      ),
+      JournalEntry(
+        id: 'je04', journalId: journal.id, description: '购买办公用品',
+        lines: [JournalEntryLine(id: 'l04', type: LineType.credit, amount: 1200)],
+      ),
+      // 复杂模式：多行借贷分录（财务人员用）
+      JournalEntry(
+        id: 'je05', journalId: journal.id, description: '员工报销差旅费',
+        lines: [
+          JournalEntryLine(id: 'l05', type: LineType.debit, amount: 3500),
+          JournalEntryLine(id: 'l06', type: LineType.credit, amount: 3500),
+        ],
+      ),
     ];
     storage.saveEntries(entries);
-    print('✓ 已录入 ${entries.length} 笔分录');
+    print('✓ 已录入 ${entries.length} 张凭证');
 
-    final totalDebit = entries.fold(0.0, (s, e) => s + e.debit);
-    final totalCredit = entries.fold(0.0, (s, e) => s + e.credit);
-    final balance = totalDebit - totalCredit;
-
-    print('\n========== 现金日记账 ==========');
-    print('${journal.name}');
-    print('总借方：¥${totalDebit.toStringAsFixed(0)}');
-    print('总贷方：¥${totalCredit.toStringAsFixed(0)}');
-    print('当前余额：¥${balance.toStringAsFixed(0)}');
-    print('===============================');
-
-    expect(balance, 63800);
+    // 余额 = 所有借方 - 所有贷方（简单模式不要求每笔平衡）
+    final balance = entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
+    print('\n当前余额：¥${balance.toStringAsFixed(0)}');
+    expect(balance, 35800);
     print('\n✓ 余额 ¥${balance.toStringAsFixed(0)} ✓');
   });
 }

@@ -19,10 +19,15 @@ void main() {
     expect(service.loadJournals().first.name, '备用金');
   });
 
-  test('entries save and load', () {
+  test('entries save and load with lines', () {
     service.saveEntries([
-      JournalEntry(id: 'je1', journalId: 'j1', entryDate: DateTime(2026, 5, 29), debit: 500, credit: 0),
+      JournalEntry(id: 'je1', journalId: 'j1', lines: [
+        JournalEntryLine(id: 'l1', type: LineType.debit, amount: 500),
+        JournalEntryLine(id: 'l2', type: LineType.credit, amount: 500),
+      ]),
     ]);
-    expect(service.loadEntries().first.debit, 500);
+    final loaded = service.loadEntries();
+    expect(loaded.first.lines.length, 2);
+    expect(loaded.first.isBalanced, isTrue);
   });
 }
