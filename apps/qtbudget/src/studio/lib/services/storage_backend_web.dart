@@ -1,5 +1,5 @@
-import 'package:quanttide_finance/quanttide_finance.dart';
 import 'package:web/web.dart';
+import 'storage_backend.dart';
 
 class LocalStorageBackend implements StorageBackend {
   @override
