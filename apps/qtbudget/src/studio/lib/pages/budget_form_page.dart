@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/budget.dart';
-import '../models/account_code.dart';
 import '../models/entry.dart';
 import '../services/storage_service.dart';
-import 'account_codes_page.dart';
 
 class BudgetFormPage extends StatefulWidget {
   final Budget? budget;
-  final List<AccountCode> tags;
   final List<Entry> entries;
 
   const BudgetFormPage({
     super.key,
     this.budget,
-    required this.tags,
     required this.entries,
   });
 
@@ -31,7 +27,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
   final _entryDescCtrl = TextEditingController();
   final _entryAmtCtrl = TextEditingController();
-  String? _entryTagId;
   bool _isIncome = false;
 
   @override
@@ -54,8 +49,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     _entryAmtCtrl.dispose();
     super.dispose();
   }
-
-  List<AccountCode> get _tags => _storage.loadAccountCodes();
 
   void _save() {
     final cap = double.tryParse(_capCtrl.text);
@@ -102,7 +95,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
       description: _entryDescCtrl.text,
       amount: amt,
       date: DateTime.now(),
-      tagId: _entryTagId,
     );
 
     final allEntries = [...widget.entries, entry];
@@ -110,10 +102,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
 
     _entryDescCtrl.clear();
     _entryAmtCtrl.clear();
-    setState(() {
-      _entryTagId = null;
-      _isIncome = false;
-    });
+    setState(() => _isIncome = false);
   }
 
   @override
@@ -211,21 +200,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
               ],
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _entryTagId,
-              decoration: const InputDecoration(
-                labelText: '标签（可选）',
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('无标签')),
-                ..._tags.map(
-                  (t) => DropdownMenuItem(value: t.id, child: Text('${t.code} ${t.name}')),
-                ),
-              ],
-              onChanged: (v) => setState(() => _entryTagId = v),
-            ),
-            const SizedBox(height: 8),
             Row(
               children: [
                 SegmentedButton<bool>(
@@ -235,18 +209,6 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                   ],
                   selected: {_isIncome},
                   onSelectionChanged: (v) => setState(() => _isIncome = v.first),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  icon: const Icon(Icons.settings_outlined, size: 16),
-                  label: const Text('管理标签'),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AccountCodesPage()),
-                    );
-                    setState(() {});
-                  },
                 ),
                 const Spacer(),
                 FilledButton.tonalIcon(
@@ -278,18 +240,11 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             ),
             const Divider(),
             ...entries.reversed.take(50).map((e) {
-              final tag = e.tagId != null
-                  ? _tags.where((c) => c.id == e.tagId).firstOrNull
-                  : null;
               return ListTile(
                 dense: true,
                 title: Text(
-                  e.description.isNotEmpty ? e.description : (tag?.name ?? ''),
+                  e.description.isNotEmpty ? e.description : '无说明',
                 ),
-                subtitle: tag != null
-                    ? Text('${tag.code} ${tag.name}',
-                        style: Theme.of(context).textTheme.bodySmall)
-                    : null,
                 trailing: Text(
                   '${e.isExpense ? '-' : '+'}¥${e.amount.abs().toStringAsFixed(2)}',
                   style: TextStyle(

@@ -8,7 +8,6 @@ class Budget {
   double cap;
   String? note;
   DateTime createdAt;
-  DateTime updatedAt;
 
   Budget({
     required this.id,
@@ -16,9 +15,7 @@ class Budget {
     required this.cap,
     this.note,
     DateTime? createdAt,
-    DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -26,7 +23,6 @@ class Budget {
     'cap': cap,
     'note': note,
     'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
   };
 
   factory Budget.fromJson(Map<String, dynamic> json) => Budget(
@@ -35,6 +31,5 @@ class Budget {
     cap: (json['cap'] as num).toDouble(),
     note: json['note'] as String?,
     createdAt: DateTime.parse(json['createdAt'] as String),
-    updatedAt: DateTime.parse(json['updatedAt'] as String),
   );
 }

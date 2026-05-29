@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/budget.dart';
-import '../models/account_code.dart';
 import '../models/entry.dart';
 import '../services/storage_service.dart';
-import 'account_codes_page.dart';
 import 'budget_form_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -16,7 +14,6 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final _storage = StorageService();
   List<Budget> _budgets = [];
-  List<AccountCode> _tags = [];
   List<Entry> _entries = [];
 
   @override
@@ -27,7 +24,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _load() {
     setState(() {
-      _tags = _storage.loadAccountCodes();
       _budgets = _storage.loadBudgets();
       _entries = _storage.loadEntries();
     });
@@ -48,14 +44,15 @@ class _DashboardPageState extends State<DashboardPage> {
   double _remaining(Budget b) => b.cap - _spent(b.id) + _income(b.id);
 
   double _burnRate(String budgetId) {
-    final days = DateTime.now().difference(
-      _entries.where((e) => e.budgetId == budgetId).fold<DateTime?>(
-        null, (earliest, e) {
-          if (earliest == null || e.date.isBefore(earliest)) return e.date;
-          return earliest;
-        },
-      ) ?? DateTime.now(),
-    ).inDays;
+    final entries = _entries.where((e) => e.budgetId == budgetId);
+    final firstDate = entries.fold<DateTime?>(
+      null, (earliest, e) {
+        if (earliest == null || e.date.isBefore(earliest)) return e.date;
+        return earliest;
+      },
+    );
+    if (firstDate == null) return 0;
+    final days = DateTime.now().difference(firstDate).inDays;
     if (days <= 0) return 0;
     return _spent(budgetId) / days;
   }
@@ -74,17 +71,6 @@ class _DashboardPageState extends State<DashboardPage> {
       appBar: AppBar(
         title: const Text('量潮预算管家'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_balance_outlined),
-            tooltip: '标签管理',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AccountCodesPage()),
-              );
-              _load();
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: '新建预算',
@@ -161,7 +147,6 @@ class _DashboardPageState extends State<DashboardPage> {
       MaterialPageRoute(
         builder: (_) => BudgetFormPage(
           budget: budget,
-          tags: _tags,
           entries: _entries.where((e) => e.budgetId == budget?.id).toList(),
         ),
       ),

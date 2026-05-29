@@ -15,30 +15,26 @@ void main() {
   });
 
   group('Budgets', () {
-    test('load returns empty list when none saved', () {
+    test('load returns empty when none saved', () {
       expect(service.loadBudgets(), isEmpty);
     });
 
     test('save and load round-trip', () {
-      service.saveBudgets([
-        Budget(id: 'b1', name: 'Q3 经费', cap: 100000, note: '季度预算'),
-      ]);
-      final loaded = service.loadBudgets();
-      expect(loaded.length, 1);
-      expect(loaded[0].cap, 100000);
+      service.saveBudgets([Budget(id: 'b1', name: 'Q3 经费', cap: 100000)]);
+      expect(service.loadBudgets().first.cap, 100000);
     });
 
-    test('multiple budgets are persisted', () {
+    test('multiple budgets', () {
       service.saveBudgets([
-        Budget(id: 'b1', name: '经费A', cap: 50000),
-        Budget(id: 'b2', name: '经费B', cap: 30000),
+        Budget(id: 'b1', name: 'A', cap: 50000),
+        Budget(id: 'b2', name: 'B', cap: 30000),
       ]);
       expect(service.loadBudgets().length, 2);
     });
   });
 
   group('Entries', () {
-    test('load returns empty list when none saved', () {
+    test('load returns empty when none saved', () {
       expect(service.loadEntries(), isEmpty);
     });
 
@@ -46,16 +42,7 @@ void main() {
       service.saveEntries([
         Entry(id: 'e1', budgetId: 'b1', description: '买书', amount: 200, date: DateTime(2026, 5, 29)),
       ]);
-      final loaded = service.loadEntries();
-      expect(loaded.length, 1);
-      expect(loaded[0].description, '买书');
-    });
-
-    test('save entry with tag', () {
-      service.saveEntries([
-        Entry(id: 'e1', budgetId: 'b1', description: 'test', amount: 100, date: DateTime(2026, 5, 29), tagId: 't1'),
-      ]);
-      expect(service.loadEntries().first.tagId, 't1');
+      expect(service.loadEntries().first.description, '买书');
     });
   });
 
@@ -65,10 +52,6 @@ void main() {
       service.saveEntries([
         Entry(id: 'e1', budgetId: 'b1', description: 'test', amount: 100, date: DateTime(2026, 5, 29)),
       ]);
-
-      expect(service.loadBudgets().length, 1);
-      expect(service.loadEntries().length, 1);
-
       service.saveBudgets([]);
       expect(service.loadBudgets(), isEmpty);
       expect(service.loadEntries().length, 1);

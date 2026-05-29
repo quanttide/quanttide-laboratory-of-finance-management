@@ -4,7 +4,6 @@ import 'package:qtbudget/models/entry.dart';
 import 'package:qtbudget/services/storage_service.dart';
 import 'shared/fake_storage.dart';
 
-/// 演示完整使用场景：研发部 Q3 运营经费管控
 void main() {
   late StorageService storage;
 
@@ -35,9 +34,6 @@ void main() {
     final spent = entries.where((e) => e.isExpense).fold(0.0, (s, e) => s + e.amount);
     final income = entries.where((e) => e.isIncome).fold(0.0, (s, e) => s + e.amount.abs());
     final remaining = budget.cap - spent + income;
-    final dates = entries.map((e) => e.date).toList()..sort();
-    final days = dates.first.difference(dates.last).inDays.abs() + 1;
-    final burnRate = spent / days;
 
     print('\n========== 预算看板 ==========');
     print('预算：${budget.name}');
@@ -46,8 +42,6 @@ void main() {
     print('已回款：¥${income.toStringAsFixed(0)}');
     print('净支出：¥${(spent - income).toStringAsFixed(0)}');
     print('剩余：¥${remaining.toStringAsFixed(0)}');
-    print('日均消耗：¥${burnRate.toStringAsFixed(0)}');
-    print('预计可花天数：${(remaining / burnRate).round()} 天');
     print('==============================');
 
     expect(spent, 63100);
