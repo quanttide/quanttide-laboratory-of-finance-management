@@ -30,10 +30,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   double _balance(Journal j) {
-    final total = _entries
+    return _entries
         .where((e) => e.journalId == j.id)
         .fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
-    return (j.startingBalance ?? 0) + total;
   }
 
   void _delete(Journal journal) {
@@ -69,12 +68,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildCard(Journal journal) {
     final balance = _balance(journal);
-    final color = balance < 0
-        ? Colors.red
-        : journal.startingBalance != null && balance < journal.startingBalance! * 0.2
-        ? Colors.orange
-        : Colors.green;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -83,16 +76,13 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: journal.startingBalance != null && journal.startingBalance! > 0
-                  ? (balance / journal.startingBalance!).clamp(0, 1)
-                  : balance > 0 ? balance / 100000 : 0,
-              color: color,
-            ),
-            const SizedBox(height: 4),
             Text(
               '余额 ¥${_fmt(balance)}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: balance < 0 ? Colors.red : Colors.green.shade800,
+              ),
             ),
           ],
         ),

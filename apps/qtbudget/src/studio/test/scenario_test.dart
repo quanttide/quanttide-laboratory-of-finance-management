@@ -13,17 +13,17 @@ void main() {
   });
 
   test('完整场景：研发部备用金日记账', () {
-    final journal = Journal(id: 'j_q3', name: '研发部备用金', startingBalance: 50000);
+    final journal = Journal(id: 'j_q3', name: '研发部备用金');
     storage.saveJournals([journal]);
-    print('✓ 创建日记账：${journal.name}（期初 ¥${journal.startingBalance}）');
+    print('✓ 创建日记账：${journal.name}');
 
     final entries = [
       JournalEntry(
         id: 'je01', journalId: journal.id, entryDate: DateTime(2026, 7, 3),
         description: '打印纸和墨盒',
         lines: [
-          JournalEntryLine(id: 'l01', debit: 800, credit: 0, description: '办公费'),
-          JournalEntryLine(id: 'l02', debit: 0, credit: 800, description: '银行存款'),
+          JournalEntryLine(id: 'l01', debit: 50000, credit: 0, description: '期初转入'),
+          JournalEntryLine(id: 'l02', debit: 0, credit: 50000, description: '银行存款'),
         ],
       ),
       JournalEntry(
@@ -48,11 +48,10 @@ void main() {
 
     final totalDebit = entries.fold(0.0, (s, e) => s + e.totalDebit);
     final totalCredit = entries.fold(0.0, (s, e) => s + e.totalCredit);
-    final balance = (journal.startingBalance ?? 0) + totalDebit - totalCredit;
+    final balance = totalDebit - totalCredit;
 
     print('\n========== 现金日记账 ==========');
     print('${journal.name}');
-    print('期初余额：¥${journal.startingBalance?.toStringAsFixed(0)}');
     print('总借方：¥${totalDebit.toStringAsFixed(0)}');
     print('总贷方：¥${totalCredit.toStringAsFixed(0)}');
     print('当前余额：¥${balance.toStringAsFixed(0)}');

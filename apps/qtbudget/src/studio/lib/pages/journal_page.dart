@@ -21,7 +21,6 @@ class _JournalPageState extends State<JournalPage> {
   final _storage = StorageService();
 
   late TextEditingController _nameCtrl;
-  late TextEditingController _balanceCtrl;
   late final _editing = widget.journal != null;
 
   final _descCtrl = TextEditingController();
@@ -31,42 +30,29 @@ class _JournalPageState extends State<JournalPage> {
   @override
   void initState() {
     super.initState();
-    final j = widget.journal;
-    _nameCtrl = TextEditingController(text: j?.name ?? '');
-    _balanceCtrl = TextEditingController(
-      text: j?.startingBalance?.toStringAsFixed(0) ?? '',
-    );
+    _nameCtrl = TextEditingController(text: widget.journal?.name ?? '');
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _balanceCtrl.dispose();
     _descCtrl.dispose();
     _amtCtrl.dispose();
     super.dispose();
   }
 
-  double _balance() {
-    final total = widget.entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
-    return (widget.journal?.startingBalance ?? 0) + total;
-  }
+  double get _balance => widget.entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
 
   void _save() {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
     final journals = _storage.loadJournals();
     if (_editing) {
-      final j = widget.journal!;
-      j.name = name;
-      j.startingBalance = double.tryParse(_balanceCtrl.text);
-      final idx = journals.indexWhere((x) => x.id == j.id);
-      if (idx >= 0) journals[idx] = j;
+      widget.journal!.name = name;
     } else {
       journals.add(Journal(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: name,
-        startingBalance: double.tryParse(_balanceCtrl.text),
       ));
     }
     _storage.saveJournals(journals);
@@ -94,8 +80,7 @@ class _JournalPageState extends State<JournalPage> {
         ),
       ],
     );
-    final all = [...widget.entries, entry];
-    _storage.saveEntries(all);
+    _storage.saveEntries([...widget.entries, entry]);
 
     _descCtrl.clear();
     _amtCtrl.clear();
@@ -133,19 +118,9 @@ class _JournalPageState extends State<JournalPage> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: '日记账名称'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _balanceCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '期初余额（可选）', prefixText: '¥ '),
-            ),
-          ],
+        child: TextField(
+          controller: _nameCtrl,
+          decoration: const InputDecoration(labelText: '日记账名称'),
         ),
       ),
     );
@@ -201,9 +176,8 @@ class _JournalPageState extends State<JournalPage> {
   }
 
   Widget _buildBalanceCard() {
-    final balance = _balance();
     return Card(
-      color: balance < 0 ? Colors.red.shade50 : Colors.green.shade50,
+      color: _balance < 0 ? Colors.red.shade50 : Colors.green.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -215,11 +189,11 @@ class _JournalPageState extends State<JournalPage> {
               children: [
                 const Text('当前余额', style: TextStyle(fontSize: 14)),
                 Text(
-                  '¥${_fmt(balance)}',
+                  '¥${_fmt(_balance)}',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: balance < 0 ? Colors.red : Colors.green.shade800,
+                    color: _balance < 0 ? Colors.red : Colors.green.shade800,
                   ),
                 ),
               ],
@@ -259,10 +233,7 @@ class _JournalPageState extends State<JournalPage> {
                         ),
                         Text(
                           '¥${_fmt(e.totalDebit)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
                         ),
                       ],
                     ),
