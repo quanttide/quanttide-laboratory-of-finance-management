@@ -1,18 +1,14 @@
 enum EntryStatus { draft, posted }
 
-/// 凭证行 — 一条借贷记录
+/// 分录行 — 一条借贷记录
 class JournalEntryLine {
   final String id;
-  String accountCodeId;
-  String accountName;
   double debit;
   double credit;
   String description;
 
   JournalEntryLine({
     required this.id,
-    required this.accountCodeId,
-    this.accountName = '',
     this.debit = 0,
     this.credit = 0,
     this.description = '',
@@ -20,8 +16,6 @@ class JournalEntryLine {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'accountCodeId': accountCodeId,
-    'accountName': accountName,
     'debit': debit,
     'credit': credit,
     'description': description,
@@ -30,8 +24,6 @@ class JournalEntryLine {
   factory JournalEntryLine.fromJson(Map<String, dynamic> json) =>
       JournalEntryLine(
         id: json['id'] as String,
-        accountCodeId: json['accountCodeId'] as String,
-        accountName: json['accountName'] as String? ?? '',
         debit: (json['debit'] as num?)?.toDouble() ?? 0,
         credit: (json['credit'] as num?)?.toDouble() ?? 0,
         description: json['description'] as String? ?? '',

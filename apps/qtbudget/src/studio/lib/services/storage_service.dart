@@ -1,7 +1,6 @@
 import 'dart:convert';
 import '../models/journal.dart';
 import '../models/journal_entry.dart';
-import '../models/account_code.dart';
 import 'storage_backend.dart';
 
 class StorageService {
@@ -13,7 +12,6 @@ class StorageService {
 
   static const _journalsKey = 'qtbudget_journals';
   static const _entriesKey = 'qtbudget_entries';
-  static const _codesKey = 'qtbudget_account_codes';
 
   List<Journal> loadJournals() {
     final raw = _backend.getItem(_journalsKey);
@@ -35,17 +33,6 @@ class StorageService {
 
   void saveEntries(List<JournalEntry> entries) {
     _backend.setItem(_entriesKey, jsonEncode(entries.map((e) => e.toJson()).toList()));
-  }
-
-  List<AccountCode> loadAccountCodes() {
-    final raw = _backend.getItem(_codesKey);
-    if (raw == null) return [];
-    final list = jsonDecode(raw) as List;
-    return list.map((e) => AccountCode.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  void saveAccountCodes(List<AccountCode> codes) {
-    _backend.setItem(_codesKey, jsonEncode(codes.map((c) => c.toJson()).toList()));
   }
 }
 

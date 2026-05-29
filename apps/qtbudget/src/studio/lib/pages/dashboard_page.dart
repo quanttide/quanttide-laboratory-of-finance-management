@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/journal.dart';
 import '../models/journal_entry.dart';
 import '../services/storage_service.dart';
-import 'account_codes_page.dart';
 import 'journal_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -51,17 +50,6 @@ class _DashboardPageState extends State<DashboardPage> {
       appBar: AppBar(
         title: const Text('现金日记账'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_balance_outlined),
-            tooltip: '科目管理',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AccountCodesPage()),
-              );
-              _load();
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: '新建日记账',
