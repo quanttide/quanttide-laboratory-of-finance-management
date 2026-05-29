@@ -66,8 +66,15 @@ class _JournalPageState extends State<JournalPage> {
     });
   }
 
+  double _debit(JournalEntry e) => e.lines.where((l) => l.type == LineType.debit).fold(0.0, (s, l) => s + l.amount);
+  double _credit(JournalEntry e) => e.lines.where((l) => l.type == LineType.credit).fold(0.0, (s, l) => s + l.amount);
+  bool _balanced(JournalEntry e) {
+    final d = _debit(e), c = _credit(e);
+    return d > 0 && d == c;
+  }
+
   double _balance() {
-    return widget.entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
+    return widget.entries.fold(0.0, (s, e) => s + _debit(e) - _credit(e));
   }
 
   void _save() {
@@ -361,10 +368,10 @@ class _JournalPageState extends State<JournalPage> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        if (!e.isBalanced)
+                        if (!_balanced(e))
                           const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
                         Text(
-                          '借 ¥${_fmt(e.totalDebit)}  贷 ¥${_fmt(e.totalCredit)}',
+                          '借 ¥${_fmt(_debit(e))}  贷 ¥${_fmt(_credit(e))}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ],
@@ -392,7 +399,7 @@ class _JournalPageState extends State<JournalPage> {
                                   fontWeight: FontWeight.w600,
                                 )),
                           ),
-                          Text('¥${_fmt(l.amount)}',
+                          Text('¥${_fmt(l.amount)}', // JournalEntryLine.amount
                               style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),

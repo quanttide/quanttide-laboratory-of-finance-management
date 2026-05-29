@@ -30,9 +30,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   double _balance(Journal j) {
-    return _entries
-        .where((e) => e.journalId == j.id)
-        .fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
+    return _entries.where((e) => e.journalId == j.id).fold(0.0, (s, e) {
+      final debit = e.lines.where((l) => l.type == LineType.debit).fold(0.0, (a, l) => a + l.amount);
+      final credit = e.lines.where((l) => l.type == LineType.credit).fold(0.0, (a, l) => a + l.amount);
+      return s + debit - credit;
+    });
   }
 
   void _delete(Journal journal) {

@@ -52,13 +52,6 @@ class JournalEntry {
   }) : createdAt = createdAt ?? DateTime.now(),
        lines = lines ?? [];
 
-  double get totalDebit =>
-      lines.where((l) => l.type == LineType.debit).fold(0, (s, l) => s + l.amount);
-  double get totalCredit =>
-      lines.where((l) => l.type == LineType.credit).fold(0, (s, l) => s + l.amount);
-  bool get isBalanced => totalDebit > 0 && totalDebit == totalCredit;
-  double get amount => totalDebit - totalCredit;
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'journalId': journalId,
