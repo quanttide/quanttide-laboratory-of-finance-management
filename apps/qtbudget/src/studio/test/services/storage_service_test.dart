@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qtbudget/models/budget.dart';
+import 'package:qtbudget/models/journal.dart';
 import 'package:qtbudget/models/entry.dart';
 import 'package:qtbudget/services/storage_service.dart';
 import '../shared/fake_storage.dart';
@@ -14,22 +14,16 @@ void main() {
     service = StorageService();
   });
 
-  group('Budgets', () {
+  group('Journals', () {
     test('load returns empty when none saved', () {
-      expect(service.loadBudgets(), isEmpty);
+      expect(service.loadJournals(), isEmpty);
     });
 
     test('save and load round-trip', () {
-      service.saveBudgets([Budget(id: 'b1', name: 'Q3 经费', cap: 100000)]);
-      expect(service.loadBudgets().first.cap, 100000);
-    });
-
-    test('multiple budgets', () {
-      service.saveBudgets([
-        Budget(id: 'b1', name: 'A', cap: 50000),
-        Budget(id: 'b2', name: 'B', cap: 30000),
-      ]);
-      expect(service.loadBudgets().length, 2);
+      service.saveJournals([Journal(id: 'j1', name: '备用金', startingBalance: 5000)]);
+      final loaded = service.loadJournals();
+      expect(loaded.first.name, '备用金');
+      expect(loaded.first.startingBalance, 5000);
     });
   });
 
@@ -40,21 +34,9 @@ void main() {
 
     test('save and load round-trip', () {
       service.saveEntries([
-        Entry(id: 'e1', budgetId: 'b1', description: '买书', amount: 200, date: DateTime(2026, 5, 29)),
+        Entry(id: 'e1', journalId: 'j1', description: '买书', inflow: 0, outflow: 200, date: DateTime(2026, 5, 29)),
       ]);
-      expect(service.loadEntries().first.description, '买书');
-    });
-  });
-
-  group('Cross-entity isolation', () {
-    test('saving budgets does not affect entries', () {
-      service.saveBudgets([Budget(id: 'b1', name: '预算', cap: 10000)]);
-      service.saveEntries([
-        Entry(id: 'e1', budgetId: 'b1', description: 'test', amount: 100, date: DateTime(2026, 5, 29)),
-      ]);
-      service.saveBudgets([]);
-      expect(service.loadBudgets(), isEmpty);
-      expect(service.loadEntries().length, 1);
+      expect(service.loadEntries().first.outflow, 200);
     });
   });
 }

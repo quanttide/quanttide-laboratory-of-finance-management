@@ -1,31 +1,29 @@
 import 'dart:convert';
-import '../models/budget.dart';
+import '../models/journal.dart';
 import '../models/entry.dart';
 import 'storage_backend.dart';
 
 class StorageService {
   static StorageBackend _backend = _NoOpBackend();
 
-  static StorageBackend get backend => _backend;
-
   static void useBackend(StorageBackend backend) {
     _backend = backend;
   }
 
-  static const _budgetsKey = 'qtbudget_budgets';
+  static const _journalsKey = 'qtbudget_journals';
   static const _entriesKey = 'qtbudget_entries';
 
-  List<Budget> loadBudgets() {
-    final raw = _backend.getItem(_budgetsKey);
+  List<Journal> loadJournals() {
+    final raw = _backend.getItem(_journalsKey);
     if (raw == null) return [];
     final list = jsonDecode(raw) as List;
-    return list.map((e) => Budget.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((e) => Journal.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  void saveBudgets(List<Budget> budgets) {
+  void saveJournals(List<Journal> journals) {
     _backend.setItem(
-      _budgetsKey,
-      jsonEncode(budgets.map((b) => b.toJson()).toList()),
+      _journalsKey,
+      jsonEncode(journals.map((j) => j.toJson()).toList()),
     );
   }
 

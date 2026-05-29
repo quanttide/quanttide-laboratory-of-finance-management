@@ -1,37 +1,40 @@
-/// 一条资金流水。
+/// 日记账中的一笔流水。
 ///
-/// 每笔花销或收入，关联到一个 Budget。amount 为正表示支出，为负表示收入。
+/// inflow / outflow 不会同时 > 0，但模型不做限制。balance 由 Journal 层汇总计算。
 class Entry {
   final String id;
-  final String budgetId;
+  final String journalId;
   String description;
-  double amount;
+  double inflow;
+  double outflow;
   DateTime date;
 
   Entry({
     required this.id,
-    required this.budgetId,
+    required this.journalId,
     required this.description,
-    required this.amount,
+    this.inflow = 0,
+    this.outflow = 0,
     required this.date,
-  });
+  }) : assert(inflow >= 0 && outflow >= 0);
 
-  bool get isIncome => amount < 0;
-  bool get isExpense => amount > 0;
+  double get amount => inflow - outflow;
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'budgetId': budgetId,
+    'journalId': journalId,
     'description': description,
-    'amount': amount,
+    'inflow': inflow,
+    'outflow': outflow,
     'date': date.toIso8601String(),
   };
 
   factory Entry.fromJson(Map<String, dynamic> json) => Entry(
     id: json['id'] as String,
-    budgetId: json['budgetId'] as String,
+    journalId: json['journalId'] as String,
     description: json['description'] as String? ?? '',
-    amount: (json['amount'] as num).toDouble(),
+    inflow: (json['inflow'] as num?)?.toDouble() ?? 0,
+    outflow: (json['outflow'] as num?)?.toDouble() ?? 0,
     date: DateTime.parse(json['date'] as String),
   );
 }
