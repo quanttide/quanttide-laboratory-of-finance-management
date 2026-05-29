@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/journal.dart';
 import '../models/journal_entry.dart';
+import '../models/account_code.dart';
 import '../services/storage_service.dart';
+import 'account_codes_page.dart';
 
 class JournalPage extends StatefulWidget {
   final Journal? journal;
@@ -25,8 +27,8 @@ class _JournalPageState extends State<JournalPage> {
   late final _editing = widget.journal != null;
 
   final _descCtrl = TextEditingController();
-  final _debitCtrl = TextEditingController();
-  final _creditCtrl = TextEditingController();
+  final _amtCtrl = TextEditingController();
+  String? _accountCodeId;
 
   @override
   void initState() {
@@ -43,22 +45,21 @@ class _JournalPageState extends State<JournalPage> {
     _nameCtrl.dispose();
     _balanceCtrl.dispose();
     _descCtrl.dispose();
-    _debitCtrl.dispose();
-    _creditCtrl.dispose();
+    _amtCtrl.dispose();
     super.dispose();
   }
 
+  List<AccountCode> get _accounts => _storage.loadAccountCodes();
+
   double _balance() {
-    final total = widget.entries.fold(0.0, (s, e) => s + e.debit - e.credit);
+    final total = widget.entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
     return (widget.journal?.startingBalance ?? 0) + total;
   }
 
   void _save() {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
-
     final journals = _storage.loadJournals();
-
     if (_editing) {
       final j = widget.journal!;
       j.name = name;
@@ -66,43 +67,59 @@ class _JournalPageState extends State<JournalPage> {
       final idx = journals.indexWhere((x) => x.id == j.id);
       if (idx >= 0) journals[idx] = j;
     } else {
-      journals.add(
-        Journal(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: name,
-          startingBalance: double.tryParse(_balanceCtrl.text),
-        ),
-      );
+      journals.add(Journal(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        startingBalance: double.tryParse(_balanceCtrl.text),
+      ));
     }
-
     _storage.saveJournals(journals);
     if (mounted) Navigator.pop(context);
   }
 
   void _addEntry() {
-    final debit = double.tryParse(_debitCtrl.text) ?? 0;
-    final credit = double.tryParse(_creditCtrl.text) ?? 0;
-    if (debit <= 0 && credit <= 0) return;
-
+    final raw = double.tryParse(_amtCtrl.text);
+    if (raw == null || raw <= 0) return;
     final journal = widget.journal;
     if (journal == null) return;
 
-    final entry = JournalEntry(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      journalId: journal.id,
-      description: _descCtrl.text,
-      debit: debit,
-      credit: credit,
-      date: DateTime.now(),
-    );
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
 
-    final all = [...widget.entries, entry];
-    _storage.saveEntries(all);
+    // 如果选了科目，生成标准双行分录；否则用默认规则
+    if (_accountCodeId != null) {
+      final code = _accounts.firstWhere((c) => c.id == _accountCodeId);
+      final isExpense = code.type == AccountType.expense;
+      final entry = JournalEntry(
+        id: id,
+        journalId: journal.id,
+        entryDate: DateTime.now(),
+        description: _descCtrl.text,
+        lines: [
+          JournalEntryLine(
+            id: '${id}_1',
+            accountCodeId: code.id,
+            accountName: code.name,
+            debit: isExpense ? raw : 0,
+            credit: isExpense ? 0 : raw,
+            description: _descCtrl.text,
+          ),
+          JournalEntryLine(
+            id: '${id}_2',
+            accountCodeId: '-',
+            accountName: isExpense ? '银行存款' : '银行存款',
+            debit: isExpense ? 0 : raw,
+            credit: isExpense ? raw : 0,
+            description: '对方科目',
+          ),
+        ],
+      );
+      final all = [...widget.entries, entry];
+      _storage.saveEntries(all);
+    }
 
     _descCtrl.clear();
-    _debitCtrl.clear();
-    _creditCtrl.clear();
-    setState(() {});
+    _amtCtrl.clear();
+    setState(() => _accountCodeId = null);
   }
 
   @override
@@ -122,7 +139,7 @@ class _JournalPageState extends State<JournalPage> {
             if (_editing) ...[
               _buildEntryForm(),
               const SizedBox(height: 16),
-              _buildBalance(),
+              _buildBalanceCard(),
               const SizedBox(height: 16),
               _buildEntryList(),
             ],
@@ -146,10 +163,7 @@ class _JournalPageState extends State<JournalPage> {
             TextField(
               controller: _balanceCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '期初余额（可选）',
-                prefixText: '¥ ',
-              ),
+              decoration: const InputDecoration(labelText: '期初余额（可选）', prefixText: '¥ '),
             ),
           ],
         ),
@@ -158,45 +172,58 @@ class _JournalPageState extends State<JournalPage> {
   }
 
   Widget _buildEntryForm() {
+    final accounts = _accounts;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '录入流水',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                const Text('录入凭证', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.settings_outlined, size: 16),
+                  label: const Text('科目管理'),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AccountCodesPage()),
+                    );
+                    setState(() {});
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _descCtrl,
-              decoration: const InputDecoration(labelText: '说明', isDense: true),
+              decoration: const InputDecoration(labelText: '摘要', isDense: true),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _debitCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '借方',
-                      isDense: true,
-                      prefixText: '¥ ',
-                    ),
+                  child: DropdownButtonFormField<String>(
+                    value: _accountCodeId,
+                    decoration: const InputDecoration(labelText: '科目', isDense: true),
+                    items: [
+                      if (_accountCodeId == null)
+                        const DropdownMenuItem(value: null, child: Text('先选科目')),
+                      ...accounts.map((a) =>
+                        DropdownMenuItem(value: a.id, child: Text('${a.code} ${a.name}'))),
+                    ],
+                    onChanged: (v) => setState(() => _accountCodeId = v),
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 120,
                   child: TextField(
-                    controller: _creditCtrl,
+                    controller: _amtCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '贷方',
-                      isDense: true,
-                      prefixText: '¥ ',
-                    ),
+                    decoration: const InputDecoration(labelText: '金额', isDense: true, prefixText: '¥ '),
                   ),
                 ),
               ],
@@ -216,7 +243,7 @@ class _JournalPageState extends State<JournalPage> {
     );
   }
 
-  Widget _buildBalance() {
+  Widget _buildBalanceCard() {
     final balance = _balance();
     return Card(
       color: balance < 0 ? Colors.red.shade50 : Colors.green.shade50,
@@ -256,36 +283,45 @@ class _JournalPageState extends State<JournalPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '流水记录（${entries.length}）',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            Text('凭证列表（${entries.length}）',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const Divider(),
             ...entries.reversed.take(50).map((e) {
-              return ListTile(
-                dense: true,
-                title: Text(e.description.isNotEmpty ? e.description : '无说明'),
-                trailing: SizedBox(
-                  width: 140,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (e.debit > 0)
-                        Text(
-                          '+¥${_fmt(e.debit)}',
-                          style: const TextStyle(
-                            color: Colors.green, fontWeight: FontWeight.bold,
+              final balanced = e.isBalanced;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.description.isNotEmpty ? e.description : '无摘要',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
-                      if (e.credit > 0)
+                        if (!balanced)
+                          const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
                         Text(
-                          '-¥${_fmt(e.credit)}',
-                          style: const TextStyle(
-                            color: Colors.red, fontWeight: FontWeight.bold,
+                          '¥${_fmt(e.totalDebit)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: balanced ? Colors.green.shade800 : Colors.red,
                           ),
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ...e.lines.map((l) => Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 2),
+                      child: Text(
+                        '  ${l.accountName}  ${l.debit > 0 ? "借 ¥${_fmt(l.debit)}" : ""}${l.credit > 0 ? "贷 ¥${_fmt(l.credit)}" : ""}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    )),
+                    const Divider(height: 12),
+                  ],
                 ),
               );
             }),

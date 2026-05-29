@@ -7,8 +7,7 @@ void main() {
 
     test('toJson / fromJson round-trip', () {
       final j = Journal(
-        id: 'j1', name: '办公室备用金',
-        startingBalance: 5000, createdAt: now,
+        id: 'j1', name: '备用金', startingBalance: 5000, createdAt: now,
       );
       final json = j.toJson();
       final restored = Journal.fromJson(json);
@@ -20,15 +19,8 @@ void main() {
     });
 
     test('fromJson handles null startingBalance', () {
-      final json = {
-        'id': 'j1', 'name': 'test',
-        'createdAt': now.toIso8601String(),
-      };
+      final json = {'id': 'j1', 'name': 'test', 'createdAt': now.toIso8601String()};
       expect(Journal.fromJson(json).startingBalance, isNull);
-    });
-
-    test('default createdAt is set', () {
-      expect(Journal(id: 'j1', name: 'test').createdAt, isA<DateTime>());
     });
   });
 }

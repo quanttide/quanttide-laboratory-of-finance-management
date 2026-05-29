@@ -1,6 +1,3 @@
-/// 现金日记账。
-///
-/// 一本账，记录一类资金的流入流出。balance 由流水汇总计算，不持久化。
 class Journal {
   final String id;
   String name;

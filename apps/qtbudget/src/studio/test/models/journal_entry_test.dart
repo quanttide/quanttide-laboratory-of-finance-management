@@ -2,56 +2,80 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qtbudget/models/journal_entry.dart';
 
 void main() {
+  group('JournalEntryLine', () {
+    test('toJson / fromJson round-trip', () {
+      final l = JournalEntryLine(
+        id: 'l1', accountCodeId: '1001', accountName: '银行存款',
+        debit: 1000, credit: 0, description: '存入',
+      );
+      final json = l.toJson();
+      final restored = JournalEntryLine.fromJson(json);
+      expect(restored.debit, 1000);
+      expect(restored.credit, 0);
+      expect(restored.accountName, '银行存款');
+    });
+  });
+
   group('JournalEntry', () {
     final now = DateTime(2026, 5, 29);
 
-    test('toJson / fromJson round-trip for credit', () {
+    test('toJson / fromJson round-trip', () {
       final e = JournalEntry(
-        id: 'e1', journalId: 'j1', description: '买书',
-        debit: 0, credit: 200, date: now,
+        id: 'je1', journalId: 'j1', entryDate: now,
+        description: '购买办公用品',
+        lines: [
+          JournalEntryLine(id: 'l1', accountCodeId: '6602', debit: 1200, credit: 0, description: '办公费'),
+          JournalEntryLine(id: 'l2', accountCodeId: '1001', debit: 0, credit: 1200, description: '银行存款'),
+        ],
       );
       final json = e.toJson();
       final restored = JournalEntry.fromJson(json);
 
-      expect(restored.id, e.id);
-      expect(restored.journalId, e.journalId);
-      expect(restored.description, e.description);
-      expect(restored.debit, e.debit);
-      expect(restored.credit, e.credit);
-      expect(restored.date.toIso8601String(), e.date.toIso8601String());
-      expect(restored.amount, -200);
+      expect(restored.id, 'je1');
+      expect(restored.lines.length, 2);
+      expect(restored.totalDebit, 1200);
+      expect(restored.totalCredit, 1200);
+      expect(restored.isBalanced, isTrue);
     });
 
-    test('toJson / fromJson round-trip for debit', () {
+    test('isBalanced returns false when not balanced', () {
       final e = JournalEntry(
-        id: 'e2', journalId: 'j1', description: '回款',
-        debit: 5000, credit: 0, date: now,
+        id: 'je2', journalId: 'j1', entryDate: now,
+        lines: [
+          JournalEntryLine(id: 'l1', accountCodeId: '6602', debit: 100, credit: 0),
+        ],
       );
-      expect(JournalEntry.fromJson(e.toJson()).amount, 5000);
+      expect(e.isBalanced, isFalse);
     });
 
-    test('fromJson defaults missing numeric fields to 0', () {
+    test('isBalanced returns false when all zero', () {
+      final e = JournalEntry(
+        id: 'je3', journalId: 'j1', entryDate: now,
+        lines: [
+          JournalEntryLine(id: 'l1', accountCodeId: '6602', debit: 0, credit: 0),
+        ],
+      );
+      expect(e.isBalanced, isFalse);
+    });
+
+    test('status defaults to draft', () {
+      final e = JournalEntry(id: 'je4', journalId: 'j1', entryDate: now);
+      expect(e.status, EntryStatus.draft);
+    });
+
+    test('default lines is empty list', () {
+      final e = JournalEntry(id: 'je5', journalId: 'j1', entryDate: now);
+      expect(e.lines, isEmpty);
+    });
+
+    test('fromJson handles null lines', () {
       final json = {
-        'id': 'e3', 'journalId': 'j1',
+        'id': 'je6', 'journalId': 'j1',
+        'entryDate': now.toIso8601String(),
         'description': 'test',
-        'date': now.toIso8601String(),
+        'status': 'draft',
       };
-      final e = JournalEntry.fromJson(json);
-      expect(e.debit, 0);
-      expect(e.credit, 0);
-      expect(e.description, 'test');
-    });
-
-    test('amount returns debit - credit', () {
-      expect(JournalEntry(id: 'e1', journalId: 'j1', description: 'a', debit: 100, credit: 30, date: now).amount, 70);
-      expect(JournalEntry(id: 'e2', journalId: 'j1', description: 'a', debit: 0, credit: 50, date: now).amount, -50);
-    });
-
-    test('assert rejects negative values', () {
-      expect(
-        () => JournalEntry(id: 'e1', journalId: 'j1', description: 'a', debit: -1, credit: 0, date: now),
-        throwsAssertionError,
-      );
+      expect(JournalEntry.fromJson(json).lines, isEmpty);
     });
   });
 }
