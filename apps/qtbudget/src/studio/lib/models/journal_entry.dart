@@ -1,31 +1,31 @@
 /// 日记账中的一笔流水。
 ///
-/// inflow / outflow 不会同时 > 0，但模型不做限制。balance 由 Journal 层汇总计算。
+/// income / expense 不同时 > 0，模型不做限制。balance 由 Journal 层汇总计算。
 class JournalEntry {
   final String id;
   final String journalId;
   String description;
-  double inflow;
-  double outflow;
+  double income;
+  double expense;
   DateTime date;
 
   JournalEntry({
     required this.id,
     required this.journalId,
     required this.description,
-    this.inflow = 0,
-    this.outflow = 0,
+    this.income = 0,
+    this.expense = 0,
     required this.date,
-  }) : assert(inflow >= 0 && outflow >= 0);
+  }) : assert(income >= 0 && expense >= 0);
 
-  double get amount => inflow - outflow;
+  double get amount => income - expense;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'journalId': journalId,
     'description': description,
-    'inflow': inflow,
-    'outflow': outflow,
+    'income': income,
+    'expense': expense,
     'date': date.toIso8601String(),
   };
 
@@ -33,8 +33,8 @@ class JournalEntry {
     id: json['id'] as String,
     journalId: json['journalId'] as String,
     description: json['description'] as String? ?? '',
-    inflow: (json['inflow'] as num?)?.toDouble() ?? 0,
-    outflow: (json['outflow'] as num?)?.toDouble() ?? 0,
+    income: (json['income'] as num?)?.toDouble() ?? 0,
+    expense: (json['expense'] as num?)?.toDouble() ?? 0,
     date: DateTime.parse(json['date'] as String),
   );
 }

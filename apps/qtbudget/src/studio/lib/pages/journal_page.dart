@@ -25,8 +25,8 @@ class _JournalPageState extends State<JournalPage> {
   late final _editing = widget.journal != null;
 
   final _descCtrl = TextEditingController();
-  final _inflowCtrl = TextEditingController();
-  final _outflowCtrl = TextEditingController();
+  final _incomeCtrl = TextEditingController();
+  final _expenseCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -43,13 +43,13 @@ class _JournalPageState extends State<JournalPage> {
     _nameCtrl.dispose();
     _balanceCtrl.dispose();
     _descCtrl.dispose();
-    _inflowCtrl.dispose();
-    _outflowCtrl.dispose();
+    _incomeCtrl.dispose();
+    _expenseCtrl.dispose();
     super.dispose();
   }
 
   double _balance() {
-    final total = widget.entries.fold(0.0, (s, e) => s + e.inflow - e.outflow);
+    final total = widget.entries.fold(0.0, (s, e) => s + e.income - e.expense);
     return (widget.journal?.startingBalance ?? 0) + total;
   }
 
@@ -80,9 +80,9 @@ class _JournalPageState extends State<JournalPage> {
   }
 
   void _addEntry() {
-    final inflow = double.tryParse(_inflowCtrl.text) ?? 0;
-    final outflow = double.tryParse(_outflowCtrl.text) ?? 0;
-    if (inflow <= 0 && outflow <= 0) return;
+    final income = double.tryParse(_incomeCtrl.text) ?? 0;
+    final expense = double.tryParse(_expenseCtrl.text) ?? 0;
+    if (income <= 0 && expense <= 0) return;
 
     final journal = widget.journal;
     if (journal == null) return;
@@ -91,8 +91,8 @@ class _JournalPageState extends State<JournalPage> {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       journalId: journal.id,
       description: _descCtrl.text,
-      inflow: inflow,
-      outflow: outflow,
+      income: income,
+      expense: expense,
       date: DateTime.now(),
     );
 
@@ -100,8 +100,8 @@ class _JournalPageState extends State<JournalPage> {
     _storage.saveEntries(all);
 
     _descCtrl.clear();
-    _inflowCtrl.clear();
-    _outflowCtrl.clear();
+    _incomeCtrl.clear();
+    _expenseCtrl.clear();
     setState(() {});
   }
 
@@ -178,7 +178,7 @@ class _JournalPageState extends State<JournalPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _inflowCtrl,
+                    controller: _incomeCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: '收入',
@@ -190,7 +190,7 @@ class _JournalPageState extends State<JournalPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
-                    controller: _outflowCtrl,
+                    controller: _expenseCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: '支出',
@@ -270,16 +270,16 @@ class _JournalPageState extends State<JournalPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (e.inflow > 0)
+                      if (e.income > 0)
                         Text(
-                          '+¥${_fmt(e.inflow)}',
+                          '+¥${_fmt(e.income)}',
                           style: const TextStyle(
                             color: Colors.green, fontWeight: FontWeight.bold,
                           ),
                         ),
-                      if (e.outflow > 0)
+                      if (e.expense > 0)
                         Text(
-                          '-¥${_fmt(e.outflow)}',
+                          '-¥${_fmt(e.expense)}',
                           style: const TextStyle(
                             color: Colors.red, fontWeight: FontWeight.bold,
                           ),
