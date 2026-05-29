@@ -1,3 +1,7 @@
+/// 一笔钱的额度。
+///
+/// 额度管理模型的核心实体。不拆科目、不设计划明细，核心字段只有 cap（总额）。
+/// 余额 = cap - sum(关联 Entry.amount)，由看板层计算，不持久化。
 class Budget {
   final String id;
   String name;

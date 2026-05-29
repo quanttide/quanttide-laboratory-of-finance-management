@@ -1,3 +1,7 @@
+/// 一条资金流水。
+///
+/// 每笔花销或收入，关联到一个 Budget。amount 为正表示支出，为负表示收入。
+/// tagId 可选，用于事后分类对账，不参与余额计算。
 class Entry {
   final String id;
   final String budgetId;
