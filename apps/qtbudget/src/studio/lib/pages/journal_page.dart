@@ -82,11 +82,13 @@ class _JournalPageState extends State<JournalPage> {
     if (name.isEmpty) return;
     final journals = _storage.loadJournals();
     if (_editing) {
-      widget.journal!.name = name;
+      final idx = journals.indexWhere((j) => j.id == widget.journal!.id);
+      if (idx >= 0) journals[idx] = widget.journal!.copyWith(name: name);
     } else {
       journals.add(Journal(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: name,
+        createdAt: DateTime.now(),
       ));
     }
     _storage.saveJournals(journals);
@@ -98,16 +100,18 @@ class _JournalPageState extends State<JournalPage> {
     final journal = widget.journal;
     if (journal == null) return;
 
+    final now = DateTime.now();
     final entry = JournalEntry(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: now.microsecondsSinceEpoch.toString(),
       journalId: journal.id,
-      createdAt: DateTime.now(),
+      createdAt: now,
       description: _entryDescCtrl.text,
       lines: _lines.map((l) => JournalEntryLine(
         id: l.id,
         type: l.type,
         amount: double.tryParse(l.amtCtrl.text) ?? 0,
         description: l.descCtrl.text,
+        createdAt: now,
       )).toList(),
     );
 

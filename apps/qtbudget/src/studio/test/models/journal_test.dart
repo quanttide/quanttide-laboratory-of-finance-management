@@ -10,10 +10,13 @@ void main() {
     final restored = Journal.fromJson(json);
     expect(restored.id, j.id);
     expect(restored.name, j.name);
-    expect(restored.createdAt.toIso8601String(), j.createdAt.toIso8601String());
+    expect(restored.createdAt, now);
   });
 
-  test('default createdAt is set', () {
-    expect(Journal(id: 'j1', name: 'test').createdAt, isA<DateTime>());
+  test('copyWith', () {
+    final j = Journal(id: 'j1', name: '备用金', createdAt: now);
+    final j2 = j.copyWith(name: '改名的备用金');
+    expect(j2.name, '改名的备用金');
+    expect(j2.id, 'j1');
   });
 }
