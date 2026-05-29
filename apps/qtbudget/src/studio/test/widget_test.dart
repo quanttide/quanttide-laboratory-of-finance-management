@@ -35,10 +35,13 @@ void main() {
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).first, '六月预算');
+    // fill name
+    await tester.enterText(find.byType(TextField).at(0), 'Q3 经费');
+    // fill cap
+    await tester.enterText(find.byType(TextField).at(1), '100000');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
-    expect(find.text('六月预算'), findsOneWidget);
+    expect(find.text('Q3 经费'), findsOneWidget);
   });
 }

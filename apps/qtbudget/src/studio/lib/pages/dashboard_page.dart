@@ -16,7 +16,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final _storage = StorageService();
   List<Budget> _budgets = [];
-  List<AccountCode> _codes = [];
+  List<AccountCode> _tags = [];
   List<Transaction> _txns = [];
 
   @override
@@ -27,10 +27,37 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _load() {
     setState(() {
-      _codes = _storage.loadAccountCodes();
+      _tags = _storage.loadAccountCodes();
       _budgets = _storage.loadBudgets();
       _txns = _storage.loadTransactions();
     });
+  }
+
+  double _spent(String budgetId) {
+    return _txns
+        .where((t) => t.budgetId == budgetId && t.type == TransactionType.expense)
+        .fold(0.0, (s, t) => s + t.amount);
+  }
+
+  double _income(String budgetId) {
+    return _txns
+        .where((t) => t.budgetId == budgetId && t.type == TransactionType.income)
+        .fold(0.0, (s, t) => s + t.amount);
+  }
+
+  double _remaining(Budget b) => b.cap - _spent(b.id) + _income(b.id);
+
+  double _burnRate(String budgetId) {
+    final days = DateTime.now().difference(
+      _txns.where((t) => t.budgetId == budgetId).fold<DateTime?>(
+        null, (earliest, t) {
+          if (earliest == null || t.date.isBefore(earliest)) return t.date;
+          return earliest;
+        },
+      ) ?? DateTime.now(),
+    ).inDays;
+    if (days <= 0) return 0;
+    return _spent(budgetId) / days;
   }
 
   void _deleteBudget(Budget budget) {
@@ -49,7 +76,7 @@ class _DashboardPageState extends State<DashboardPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.account_balance_outlined),
-            tooltip: '科目管理',
+            tooltip: '标签管理',
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -76,10 +103,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildBudgetCard(Budget budget) {
-    final rate = budget.executionRate;
-    final color = rate > 1
+    final spent = _spent(budget.id);
+    final income = _income(budget.id);
+    final remaining = _remaining(budget);
+    final usage = budget.cap > 0 ? spent / budget.cap : 0.0;
+    final rate = _burnRate(budget.id);
+    final daysLeft = rate > 0 ? (remaining / rate).round() : null;
+
+    final color = remaining < 0
         ? Colors.red
-        : rate > 0.8
+        : usage > 0.8
         ? Colors.orange
         : Colors.green;
 
@@ -90,17 +123,27 @@ class _DashboardPageState extends State<DashboardPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${budget.year}${budget.month != null ? '/${budget.month}' : ''} · ${budget.status.name}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
             const SizedBox(height: 4),
-            LinearProgressIndicator(value: rate.clamp(0, 1), color: color),
-            const SizedBox(height: 2),
+            LinearProgressIndicator(value: usage.clamp(0, 1), color: color),
+            const SizedBox(height: 4),
             Text(
-              '预算 ¥${_fmt(budget.totalPlanned)} · 已用 ¥${_fmt(budget.totalActual)} · ${(rate * 100).toStringAsFixed(0)}%',
+              '总额 ¥${_fmt(budget.cap)} · 已花 ¥${_fmt(spent)} · 余额 ¥${_fmt(remaining)}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (rate > 0)
+              Text(
+                '日均消耗 ¥${_fmt(rate)} · 预计可花 ${daysLeft} 天',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            if (income > 0)
+              Text(
+                '已回款 ¥${_fmt(income)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.green[700],
+                ),
+              ),
           ],
         ),
         trailing: IconButton(
@@ -118,7 +161,7 @@ class _DashboardPageState extends State<DashboardPage> {
       MaterialPageRoute(
         builder: (_) => BudgetFormPage(
           budget: budget,
-          codes: _codes,
+          tags: _tags,
           txns: _txns.where((t) => t.budgetId == budget?.id).toList(),
         ),
       ),
