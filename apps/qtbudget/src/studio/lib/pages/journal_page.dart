@@ -41,7 +41,7 @@ class _JournalPageState extends State<JournalPage> {
     super.dispose();
   }
 
-  double get _balance => widget.entries.fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
+  double get _balance => widget.entries.fold(0.0, (s, e) => s + e.debit - e.credit);
 
   void _save() {
     final name = _nameCtrl.text.trim();
@@ -65,20 +65,13 @@ class _JournalPageState extends State<JournalPage> {
     final journal = widget.journal;
     if (journal == null) return;
 
-    final id = DateTime.now().microsecondsSinceEpoch.toString();
     final entry = JournalEntry(
-      id: id,
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
       journalId: journal.id,
       entryDate: DateTime.now(),
       description: _descCtrl.text,
-      lines: [
-        JournalEntryLine(
-          id: '${id}_1',
-          debit: _isCredit ? 0 : raw,
-          credit: _isCredit ? raw : 0,
-          description: _descCtrl.text,
-        ),
-      ],
+      debit: _isCredit ? 0 : raw,
+      credit: _isCredit ? raw : 0,
     );
     _storage.saveEntries([...widget.entries, entry]);
 
@@ -214,42 +207,20 @@ class _JournalPageState extends State<JournalPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('凭证列表（${entries.length}）',
+            Text('分录列表（${entries.length}）',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const Divider(),
-            ...entries.reversed.take(50).map((e) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            e.description.isNotEmpty ? e.description : '无摘要',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Text(
-                          '¥${_fmt(e.totalDebit)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    ...e.lines.map((l) => Padding(
-                      padding: const EdgeInsets.only(left: 16, top: 2),
-                      child: Text(
-                        '${l.debit > 0 ? "借 ¥${_fmt(l.debit)}" : "贷 ¥${_fmt(l.credit)}"}  ${l.description}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    )),
-                    const Divider(height: 12),
-                  ],
+            ...entries.reversed.take(50).map((e) => ListTile(
+              dense: true,
+              title: Text(e.description.isNotEmpty ? e.description : '无摘要'),
+              trailing: Text(
+                e.debit > 0 ? '借 ¥${_fmt(e.debit)}' : '贷 ¥${_fmt(e.credit)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: e.debit > 0 ? Colors.green.shade800 : Colors.red,
                 ),
-              );
-            }),
+              ),
+            )),
           ],
         ),
       ),

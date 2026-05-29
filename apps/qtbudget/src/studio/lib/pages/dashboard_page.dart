@@ -32,7 +32,7 @@ class _DashboardPageState extends State<DashboardPage> {
   double _balance(Journal j) {
     return _entries
         .where((e) => e.journalId == j.id)
-        .fold(0.0, (s, e) => s + e.totalDebit - e.totalCredit);
+        .fold(0.0, (s, e) => s + e.debit - e.credit);
   }
 
   void _delete(Journal journal) {
