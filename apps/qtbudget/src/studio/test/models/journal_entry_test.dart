@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qtbudget/models/journal_entry.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 
 extension on JournalEntry {
   double get totalDebit => lines.where((l) => l.type == LineType.debit).fold(0, (s, l) => s + l.amount);

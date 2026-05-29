@@ -1,4 +1,4 @@
-import 'package:qtbudget/services/storage_backend.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 
 class InMemoryStorageBackend implements StorageBackend {
   final _store = <String, String>{};

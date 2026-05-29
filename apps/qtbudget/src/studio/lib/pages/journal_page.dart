@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/journal.dart';
-import '../models/journal_entry.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 import '../services/storage_service.dart';
 
 class JournalPage extends StatefulWidget {

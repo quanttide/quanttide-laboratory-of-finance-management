@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qtbudget/models/journal.dart';
-import 'package:qtbudget/models/journal_entry.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 import 'package:qtbudget/services/storage_service.dart';
 import '../shared/fake_storage.dart';
 

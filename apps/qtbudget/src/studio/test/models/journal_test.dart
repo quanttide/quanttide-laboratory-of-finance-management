@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qtbudget/models/journal.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 
 void main() {
   final now = DateTime(2026, 5, 29);

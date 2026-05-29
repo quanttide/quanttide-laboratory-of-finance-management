@@ -1,7 +1,5 @@
 import 'dart:convert';
-import '../models/journal.dart';
-import '../models/journal_entry.dart';
-import 'storage_backend.dart';
+import 'package:quanttide_finance/quanttide_finance.dart';
 
 class StorageService {
   static StorageBackend _backend = _NoOpBackend();
