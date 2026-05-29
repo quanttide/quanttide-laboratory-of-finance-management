@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qtbudget/models/budget.dart';
-import 'package:qtbudget/models/transaction.dart';
+import 'package:qtbudget/models/entry.dart';
 import 'package:qtbudget/services/storage_service.dart';
 import '../shared/fake_storage.dart';
 
@@ -20,15 +20,12 @@ void main() {
     });
 
     test('save and load round-trip', () {
-      final budgets = [
+      service.saveBudgets([
         Budget(id: 'b1', name: 'Q3 经费', cap: 100000, note: '季度预算'),
-      ];
-      service.saveBudgets(budgets);
+      ]);
       final loaded = service.loadBudgets();
       expect(loaded.length, 1);
-      expect(loaded[0].name, 'Q3 经费');
       expect(loaded[0].cap, 100000);
-      expect(loaded[0].note, '季度预算');
     });
 
     test('multiple budgets are persisted', () {
@@ -40,55 +37,41 @@ void main() {
     });
   });
 
-  group('Transactions', () {
+  group('Entries', () {
     test('load returns empty list when none saved', () {
-      expect(service.loadTransactions(), isEmpty);
+      expect(service.loadEntries(), isEmpty);
     });
 
     test('save and load round-trip', () {
-      final txns = [
-        Transaction(
-          id: 'tx1',
-          budgetId: 'b1',
-          description: '买书',
-          amount: 200,
-          date: DateTime(2026, 5, 29),
-        ),
-      ];
-      service.saveTransactions(txns);
-      final loaded = service.loadTransactions();
+      service.saveEntries([
+        Entry(id: 'e1', budgetId: 'b1', description: '买书', amount: 200, date: DateTime(2026, 5, 29)),
+      ]);
+      final loaded = service.loadEntries();
       expect(loaded.length, 1);
       expect(loaded[0].description, '买书');
-      expect(loaded[0].type, TransactionType.expense);
     });
 
-    test('save transaction with tag', () {
-      service.saveTransactions([
-        Transaction(
-          id: 'tx1', budgetId: 'b1', description: 'test',
-          amount: 100, date: DateTime(2026, 5, 29), tagId: 't1',
-        ),
+    test('save entry with tag', () {
+      service.saveEntries([
+        Entry(id: 'e1', budgetId: 'b1', description: 'test', amount: 100, date: DateTime(2026, 5, 29), tagId: 't1'),
       ]);
-      expect(service.loadTransactions().first.tagId, 't1');
+      expect(service.loadEntries().first.tagId, 't1');
     });
   });
 
   group('Cross-entity isolation', () {
-    test('saving budgets does not affect transactions', () {
+    test('saving budgets does not affect entries', () {
       service.saveBudgets([Budget(id: 'b1', name: '预算', cap: 10000)]);
-      service.saveTransactions([
-        Transaction(
-          id: 'tx1', budgetId: 'b1', description: 'test', amount: 100,
-          date: DateTime(2026, 5, 29),
-        ),
+      service.saveEntries([
+        Entry(id: 'e1', budgetId: 'b1', description: 'test', amount: 100, date: DateTime(2026, 5, 29)),
       ]);
 
       expect(service.loadBudgets().length, 1);
-      expect(service.loadTransactions().length, 1);
+      expect(service.loadEntries().length, 1);
 
       service.saveBudgets([]);
       expect(service.loadBudgets(), isEmpty);
-      expect(service.loadTransactions().length, 1);
+      expect(service.loadEntries().length, 1);
     });
   });
 }

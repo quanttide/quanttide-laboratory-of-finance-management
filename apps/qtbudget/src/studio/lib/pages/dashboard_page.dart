@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/budget.dart';
 import '../models/account_code.dart';
-import '../models/transaction.dart';
+import '../models/entry.dart';
 import '../services/storage_service.dart';
 import 'account_codes_page.dart';
 import 'budget_form_page.dart';
@@ -17,7 +17,7 @@ class _DashboardPageState extends State<DashboardPage> {
   final _storage = StorageService();
   List<Budget> _budgets = [];
   List<AccountCode> _tags = [];
-  List<Transaction> _txns = [];
+  List<Entry> _entries = [];
 
   @override
   void initState() {
@@ -29,29 +29,29 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       _tags = _storage.loadAccountCodes();
       _budgets = _storage.loadBudgets();
-      _txns = _storage.loadTransactions();
+      _entries = _storage.loadEntries();
     });
   }
 
   double _spent(String budgetId) {
-    return _txns
-        .where((t) => t.budgetId == budgetId && t.type == TransactionType.expense)
-        .fold(0.0, (s, t) => s + t.amount);
+    return _entries
+        .where((e) => e.budgetId == budgetId && e.isExpense)
+        .fold(0.0, (s, e) => s + e.amount);
   }
 
   double _income(String budgetId) {
-    return _txns
-        .where((t) => t.budgetId == budgetId && t.type == TransactionType.income)
-        .fold(0.0, (s, t) => s + t.amount);
+    return _entries
+        .where((e) => e.budgetId == budgetId && e.isIncome)
+        .fold(0.0, (s, e) => s + e.amount.abs());
   }
 
   double _remaining(Budget b) => b.cap - _spent(b.id) + _income(b.id);
 
   double _burnRate(String budgetId) {
     final days = DateTime.now().difference(
-      _txns.where((t) => t.budgetId == budgetId).fold<DateTime?>(
-        null, (earliest, t) {
-          if (earliest == null || t.date.isBefore(earliest)) return t.date;
+      _entries.where((e) => e.budgetId == budgetId).fold<DateTime?>(
+        null, (earliest, e) {
+          if (earliest == null || e.date.isBefore(earliest)) return e.date;
           return earliest;
         },
       ) ?? DateTime.now(),
@@ -62,9 +62,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _deleteBudget(Budget budget) {
     _budgets.removeWhere((b) => b.id == budget.id);
-    _txns.removeWhere((t) => t.budgetId == budget.id);
+    _entries.removeWhere((e) => e.budgetId == budget.id);
     _storage.saveBudgets(_budgets);
-    _storage.saveTransactions(_txns);
+    _storage.saveEntries(_entries);
     _load();
   }
 
@@ -162,7 +162,7 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (_) => BudgetFormPage(
           budget: budget,
           tags: _tags,
-          txns: _txns.where((t) => t.budgetId == budget?.id).toList(),
+          entries: _entries.where((e) => e.budgetId == budget?.id).toList(),
         ),
       ),
     );

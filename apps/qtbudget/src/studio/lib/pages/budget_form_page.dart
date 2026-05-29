@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/budget.dart';
 import '../models/account_code.dart';
-import '../models/transaction.dart';
+import '../models/entry.dart';
 import '../services/storage_service.dart';
 import 'account_codes_page.dart';
 
 class BudgetFormPage extends StatefulWidget {
   final Budget? budget;
   final List<AccountCode> tags;
-  final List<Transaction> txns;
+  final List<Entry> entries;
 
   const BudgetFormPage({
     super.key,
     this.budget,
     required this.tags,
-    required this.txns,
+    required this.entries,
   });
 
   @override
@@ -29,10 +29,10 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
   late TextEditingController _noteCtrl;
   late final _editing = widget.budget != null;
 
-  final _txnDescCtrl = TextEditingController();
-  final _txnAmtCtrl = TextEditingController();
-  String? _txnTagId;
-  TransactionType _txnType = TransactionType.expense;
+  final _entryDescCtrl = TextEditingController();
+  final _entryAmtCtrl = TextEditingController();
+  String? _entryTagId;
+  bool _isIncome = false;
 
   @override
   void initState() {
@@ -50,8 +50,8 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     _nameCtrl.dispose();
     _capCtrl.dispose();
     _noteCtrl.dispose();
-    _txnDescCtrl.dispose();
-    _txnAmtCtrl.dispose();
+    _entryDescCtrl.dispose();
+    _entryAmtCtrl.dispose();
     super.dispose();
   }
 
@@ -87,31 +87,32 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     if (mounted) Navigator.pop(context);
   }
 
-  void _addTransaction() {
-    final amt = double.tryParse(_txnAmtCtrl.text);
-    if (amt == null || amt <= 0) return;
+  void _addEntry() {
+    final raw = double.tryParse(_entryAmtCtrl.text);
+    if (raw == null || raw <= 0) return;
 
     final budget = widget.budget;
     if (budget == null) return;
 
-    final txn = Transaction(
+    final amt = _isIncome ? -raw : raw;
+
+    final entry = Entry(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       budgetId: budget.id,
-      description: _txnDescCtrl.text,
+      description: _entryDescCtrl.text,
       amount: amt,
       date: DateTime.now(),
-      type: _txnType,
-      tagId: _txnTagId,
+      tagId: _entryTagId,
     );
 
-    final allTxns = [...widget.txns, txn];
-    _storage.saveTransactions(allTxns);
+    final allEntries = [...widget.entries, entry];
+    _storage.saveEntries(allEntries);
 
-    _txnDescCtrl.clear();
-    _txnAmtCtrl.clear();
+    _entryDescCtrl.clear();
+    _entryAmtCtrl.clear();
     setState(() {
-      _txnTagId = null;
-      _txnType = TransactionType.expense;
+      _entryTagId = null;
+      _isIncome = false;
     });
   }
 
@@ -130,9 +131,9 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             _buildBudgetInfo(),
             if (_editing) ...[
               const SizedBox(height: 16),
-              _buildTransactionSection(),
+              _buildEntrySection(),
               const SizedBox(height: 16),
-              _buildTransactionList(),
+              _buildEntryList(),
             ],
           ],
         ),
@@ -171,7 +172,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     );
   }
 
-  Widget _buildTransactionSection() {
+  Widget _buildEntrySection() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -179,7 +180,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '录入收支',
+              '录入流水',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -187,7 +188,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _txnDescCtrl,
+                    controller: _entryDescCtrl,
                     decoration: const InputDecoration(
                       labelText: '说明',
                       isDense: true,
@@ -198,7 +199,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                 SizedBox(
                   width: 120,
                   child: TextField(
-                    controller: _txnAmtCtrl,
+                    controller: _entryAmtCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: '金额',
@@ -211,7 +212,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: _txnTagId,
+              initialValue: _entryTagId,
               decoration: const InputDecoration(
                 labelText: '标签（可选）',
                 isDense: true,
@@ -222,24 +223,18 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                   (t) => DropdownMenuItem(value: t.id, child: Text('${t.code} ${t.name}')),
                 ),
               ],
-              onChanged: (v) => setState(() => _txnTagId = v),
+              onChanged: (v) => setState(() => _entryTagId = v),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                SegmentedButton<TransactionType>(
+                SegmentedButton<bool>(
                   segments: const [
-                    ButtonSegment(
-                      value: TransactionType.expense,
-                      label: Text('支出'),
-                    ),
-                    ButtonSegment(
-                      value: TransactionType.income,
-                      label: Text('收入'),
-                    ),
+                    ButtonSegment(value: false, label: Text('支出')),
+                    ButtonSegment(value: true, label: Text('收入')),
                   ],
-                  selected: {_txnType},
-                  onSelectionChanged: (v) => setState(() => _txnType = v.first),
+                  selected: {_isIncome},
+                  onSelectionChanged: (v) => setState(() => _isIncome = v.first),
                 ),
                 const Spacer(),
                 TextButton.icon(
@@ -257,7 +252,7 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.add),
                   label: const Text('录入'),
-                  onPressed: _addTransaction,
+                  onPressed: _addEntry,
                 ),
               ],
             ),
@@ -267,9 +262,9 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
     );
   }
 
-  Widget _buildTransactionList() {
-    final txns = widget.txns;
-    if (txns.isEmpty) return const SizedBox.shrink();
+  Widget _buildEntryList() {
+    final entries = widget.entries;
+    if (entries.isEmpty) return const SizedBox.shrink();
 
     return Card(
       child: Padding(
@@ -278,29 +273,27 @@ class _BudgetFormPageState extends State<BudgetFormPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '收支记录（${txns.length}）',
+              '流水记录（${entries.length}）',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const Divider(),
-            ...txns.reversed.take(50).map((t) {
-              final tag = t.tagId != null
-                  ? _tags.where((c) => c.id == t.tagId).firstOrNull
+            ...entries.reversed.take(50).map((e) {
+              final tag = e.tagId != null
+                  ? _tags.where((c) => c.id == e.tagId).firstOrNull
                   : null;
               return ListTile(
                 dense: true,
                 title: Text(
-                  t.description.isNotEmpty ? t.description : (tag?.name ?? ''),
+                  e.description.isNotEmpty ? e.description : (tag?.name ?? ''),
                 ),
                 subtitle: tag != null
                     ? Text('${tag.code} ${tag.name}',
                         style: Theme.of(context).textTheme.bodySmall)
                     : null,
                 trailing: Text(
-                  '${t.type == TransactionType.expense ? '-' : '+'}¥${t.amount.toStringAsFixed(2)}',
+                  '${e.isExpense ? '-' : '+'}¥${e.amount.abs().toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: t.type == TransactionType.expense
-                        ? Colors.red
-                        : Colors.green,
+                    color: e.isExpense ? Colors.red : Colors.green,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

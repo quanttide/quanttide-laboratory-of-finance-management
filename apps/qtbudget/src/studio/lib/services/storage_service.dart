@@ -1,7 +1,7 @@
 import 'dart:convert';
 import '../models/budget.dart';
 import '../models/account_code.dart';
-import '../models/transaction.dart';
+import '../models/entry.dart';
 import 'storage_backend.dart';
 
 /// localStorage 持久化服务
@@ -16,9 +16,9 @@ class StorageService {
 
   static const _budgetsKey = 'qtbudget_budgets';
   static const _codesKey = 'qtbudget_account_codes';
-  static const _txnsKey = 'qtbudget_transactions';
+  static const _entriesKey = 'qtbudget_entries';
 
-  // ---- 预算科目 ----
+  // ---- 标签（原预算科目） ----
 
   List<AccountCode> loadAccountCodes() {
     final raw = _backend.getItem(_codesKey);
@@ -52,21 +52,21 @@ class StorageService {
     );
   }
 
-  // ---- 收支记录 ----
+  // ---- 流水 ----
 
-  List<Transaction> loadTransactions() {
-    final raw = _backend.getItem(_txnsKey);
+  List<Entry> loadEntries() {
+    final raw = _backend.getItem(_entriesKey);
     if (raw == null) return [];
     final list = jsonDecode(raw) as List;
     return list
-        .map((e) => Transaction.fromJson(e as Map<String, dynamic>))
+        .map((e) => Entry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  void saveTransactions(List<Transaction> txns) {
+  void saveEntries(List<Entry> entries) {
     _backend.setItem(
-      _txnsKey,
-      jsonEncode(txns.map((t) => t.toJson()).toList()),
+      _entriesKey,
+      jsonEncode(entries.map((e) => e.toJson()).toList()),
     );
   }
 }
