@@ -1,143 +1,152 @@
 #!/usr/bin/env python3
-"""qt-runway — 现金流推演实验
-
-推演回款周期不确定 vs 固定支出矛盾下的现金跑道。
+"""qt-runway — 现金流推演 (通用版)
 
 用法:
-  ./runway.py                          # 交互模式
-  ./runway.py --demo                   # 演示场景
+  ./runway.py --demo                  # 演示场景
+  ./runway.py scenario.json           # 从JSON文件加载场景
 """
 
-import sys
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+import sys, json, calendar
+from datetime import date, timedelta
+
+DEMO = {
+    "cash": 50,
+    "buffer": 10,
+    "monthly_expense": 30,
+    "receivables": [
+        {"label": "客户A", "amount": 40, "due_days": 15, "delay_risk": 0.3},
+        {"label": "客户B", "amount": 60, "due_days": 45, "delay_risk": 0.1},
+        {"label": "客户C", "amount": 30, "due_days": 75, "delay_risk": 0.05},
+    ],
+}
 
 
-@dataclass
-class Receivable:
-    label: str
-    amount: float
-    days_to_arrival: int  # 预计多少天后到账
+def load_scenario(path=None):
+    if not path or path == "--demo":
+        return DEMO
+    with open(path) as f:
+        return json.load(f)
 
 
-@dataclass
-class Scenario:
-    cash: float
-    monthly_expense: float
-    receivables: list = field(default_factory=list)
+def month_offset(d: date, n: int) -> date:
+    """返回 d 所在月份 +n 个月 (保持日不变, 超出取月末)"""
+    m = d.month - 1 + n
+    y = d.year + m // 12
+    m = m % 12 + 1
+    last = calendar.monthrange(y, m)[1]
+    return date(y, m, min(d.day, last))
 
 
-def project(scenario: Scenario, delay_days: int = 0):
-    """按月推演现金流，delay_days 是全部回款的统一延迟天数"""
-    cash = scenario.cash
-    monthly = scenario.monthly_expense
-    # 按预计到账时间排序
-    recvs = sorted(scenario.receivables, key=lambda r: r.days_to_arrival + delay_days)
+def month_end(d: date) -> date:
+    """d所在月份的最后一天"""
+    last = calendar.monthrange(d.year, d.month)[1]
+    return date(d.year, d.month, last)
 
-    print(f"\n{'='*50}")
-    print(f"现金流推演")
-    print(f"{'='*50}")
-    print(f"当前现金: {cash:.0f} 万元")
-    print(f"月固定支出: {monthly:.0f} 万元")
-    print(f"回款延迟假设: {delay_days} 天")
-    print()
+
+def project(scenario: dict, delay: int = 0, start: date = None, quiet: bool = False):
+    """按月推演。返回 (可维持月数, 是否断裂)"""
+    cash = scenario["cash"]
+    buffer = scenario.get("buffer", 0)
+    monthly = scenario["monthly_expense"]
+    today = start or date.today()
+    recvs = sorted(scenario["receivables"], key=lambda r: r["due_days"] + delay)
+
+    if not quiet:
+        print(f"当前现金: {cash}万元 | 最低储备: {buffer}万元 | 月支出: {monthly}万元")
+        print(f"回款延迟假设: {delay}天\n")
 
     rcv_idx = 0
-    month = 1
-    while cash > 0:
-        print(f"--- 第 {month} 月 ---")
-        print(f"  月初现金: {cash:.0f} 万元")
+    month = 0
 
-        # 当月到账的回款
+    while cash > buffer:
+        month += 1
+        m_start = month_offset(today, month - 1)
+        m_end = month_end(m_start)
+
+        if not quiet:
+            print(f"--- {m_start.year}-{m_start.month:02d} ---")
+            print(f"  月初现金: {cash:.0f}万元")
+
         incoming = 0
         while rcv_idx < len(recvs):
             r = recvs[rcv_idx]
-            days = r.days_to_arrival + delay_days
-            arrival_month = (days - 1) // 30 + 1
-            if arrival_month <= month:
-                incoming += r.amount
-                print(f"  + 回款到账: {r.label} {r.amount:.0f} 万元 (预计{r.days_to_arrival}天, 实际延迟{delay_days}天)")
+            arr = today + timedelta(days=r["due_days"] + delay)
+            if arr <= m_end:
+                incoming += r["amount"]
+                risk = r.get("delay_risk", 0)
+                risk_str = f"(延迟概率{risk:.0%})" if risk > 0 and not quiet else ""
+                if not quiet:
+                    print(f"  + {r['label']} {r['amount']}万元 {risk_str}")
                 rcv_idx += 1
             else:
                 break
 
         cash += incoming
-        print(f"  到账后现金: {cash:.0f} 万元")
-
         cash -= monthly
-        print(f"  - 固定支出: {monthly:.0f} 万元")
-        print(f"  月末现金: {cash:.0f} 万元\n")
 
         if cash <= 0:
-            print(f"⚠️  第 {month} 月末现金断裂！")
-            return month
-        month += 1
+            if not quiet:
+                print(f"  月末现金: {cash:.0f}万元")
+                print(f"\n⚠️  第{month}个月 ({m_start.year}-{m_start.month}) 现金断裂！")
+            return month, True
 
-    return month - 1
+        if not quiet:
+            gap = cash - buffer
+            print(f"  月末现金: {cash:.0f}万元 (距储备线: {gap:.0f}万元)")
+            if gap <= monthly and gap > 0:
+                print(f"  → 预警：现金逼近储备线，需关注回款进度")
+            print()
+
+    if not quiet:
+        print(f"现金降至储备线({buffer}万元)以下，停止推演")
+    return month, False
 
 
-def demo():
-    """演示场景：一家典型中小企业的现金流"""
-    s = Scenario(
-        cash=50,           # 当前现金 50万
-        monthly_expense=30, # 月支出 30万（薪资为主）
-        receivables=[
-            Receivable("客户A", 40, 15),   # 15天后回款40万
-            Receivable("客户B", 60, 45),   # 45天后回款60万
-            Receivable("客户C", 30, 75),   # 75天后回款30万
-        ],
-    )
+def find_critical_delay(scenario: dict, start: date = None):
+    """找出让跑道开始缩短的最小延迟天数"""
+    normal_months, _ = project(scenario, delay=0, start=start, quiet=True)
+    lo, hi = 0, 365
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        m, _ = project(scenario, delay=mid, start=start, quiet=True)
+        if m < normal_months:
+            hi = mid - 1
+        else:
+            lo = mid
+    return lo, normal_months
 
-    print("=" * 50)
-    print("演示场景：典型中小企业月收支")
-    print(f"当前现金: {s.cash}万 | 月支出: {s.monthly_expense}万")
-    print("预期回款:")
-    for r in s.receivables:
-        print(f"  {r.label}: {r.amount}万（{r.days_to_arrival}天后）")
-    print("=" * 50)
+
+def main():
+    path = sys.argv[1] if len(sys.argv) > 1 else "--demo"
+    scenario = load_scenario(path)
+    today = date.today()
+
+    print("=" * 55)
+    print("  量潮  |  现金流推演")
+    print("=" * 55)
 
     # 正常情况
-    normal_runway = project(s, delay_days=0)
-    print(f"\n正常情况: 可维持 {normal_runway} 个月")
+    print("\n▶ 正常情况")
+    project(scenario, delay=0, start=today)
 
-    # 回款延迟30天
-    delayed_runway = project(s, delay_days=30)
-    print(f"\n回款延迟30天: 可维持 {delayed_runway} 个月")
+    # 压力测试
+    print("\n▶ 压力测试")
+    critical, normal = find_critical_delay(scenario, start=today)
+    warn_date = today + timedelta(days=critical)
+    print(f"\n正常可维持: {normal}个月")
+    print(f"回款延迟 {critical}天 以上, 跑道开始缩短")
+    print(f"最晚行动日期: {warn_date}")
+    print(f"(若到 {warn_date} 仍未回款, 必须采取措施)")
 
-    # 回款延迟60天
-    delayed_runway2 = project(s, delay_days=60)
-    print(f"\n回款延迟60天: 可维持 {delayed_runway2} 个月")
-
-    # 结论
-    print("\n" + "=" * 50)
-    print("结论")
-    print("=" * 50)
-    if delayed_runway < 3:
-        print("⚠️  回款延迟30天即面临断裂风险，需准备现金缓冲或短期融资渠道。")
-    if normal_runway >= 3:
-        print("✅ 正常情况下现金流健康，可维持3个月以上。")
-    print()
-
-
-def interactive():
-    s = Scenario(cash=0, monthly_expense=0)
-    s.cash = float(input("当前现金余额（万元）: "))
-    s.monthly_expense = float(input("月固定支出（万元）: "))
-    n = int(input("预期回款笔数: ") or "0")
-    for i in range(n):
-        label = input(f"  第{i+1}笔 回款来源: ") or f"回款{i+1}"
-        amount = float(input(f"  第{i+1}笔 金额（万元）: "))
-        days = int(input(f"  第{i+1}笔 预计到账天数: "))
-        s.receivables.append(Receivable(label, amount, days))
-    delay = int(input("回款延迟天数假设 (0=正常): ") or "0")
-    m = project(s, delay)
-    print(f"\n可维持 {m} 个月")
+    # 风险项
+    print("\n▶ 高风险回款")
+    high = [r for r in scenario["receivables"] if r.get("delay_risk", 0) > 0.2]
+    if high:
+        for r in high:
+            print(f"  ⚠ {r['label']} {r['amount']}万元 延迟概率{r.get('delay_risk',0):.0%}")
+    else:
+        print("  (未标记延迟概率)")
 
 
 if __name__ == "__main__":
-    if "--demo" in sys.argv:
-        demo()
-    elif len(sys.argv) > 1:
-        interactive()
-    else:
-        interactive()
+    main()
