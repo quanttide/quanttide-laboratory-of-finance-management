@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""qt-runway — 现金流推演 (通用版)
+"""qt-runway — 现金流导航
+
+不是预算。是导航：
+  当前位置 + 前方路况 + 预警提示 = 随时知道怎么走。
 
 用法:
-  ./runway.py --demo                  # 演示场景
-  ./runway.py scenario.json           # 从JSON文件加载场景
+  ./runway.py --demo
+  ./runway.py scenario.json
+  ./runway.py scenario.json --what-if "+延迟30天"   # 对比场景
 """
 
 import sys, json, calendar
@@ -21,7 +25,7 @@ DEMO = {
 }
 
 
-def load_scenario(path=None):
+def load(path=None):
     if not path or path == "--demo":
         return DEMO
     with open(path) as f:
@@ -29,7 +33,6 @@ def load_scenario(path=None):
 
 
 def month_offset(d: date, n: int) -> date:
-    """返回 d 所在月份 +n 个月 (保持日不变, 超出取月末)"""
     m = d.month - 1 + n
     y = d.year + m // 12
     m = m % 12 + 1
@@ -38,45 +41,35 @@ def month_offset(d: date, n: int) -> date:
 
 
 def month_end(d: date) -> date:
-    """d所在月份的最后一天"""
     last = calendar.monthrange(d.year, d.month)[1]
     return date(d.year, d.month, last)
 
 
-def project(scenario: dict, delay: int = 0, start: date = None, quiet: bool = False):
-    """按月推演。返回 (可维持月数, 是否断裂)"""
+def simulate(scenario: dict, delay: int = 0, start: date = None, quiet: bool = False):
+    """按月推演，返回 (月列表, 断裂月份)"""
     cash = scenario["cash"]
     buffer = scenario.get("buffer", 0)
     monthly = scenario["monthly_expense"]
     today = start or date.today()
     recvs = sorted(scenario["receivables"], key=lambda r: r["due_days"] + delay)
 
-    if not quiet:
-        print(f"当前现金: {cash}万元 | 最低储备: {buffer}万元 | 月支出: {monthly}万元")
-        print(f"回款延迟假设: {delay}天\n")
-
+    months = []
     rcv_idx = 0
-    month = 0
+    m = 0
 
     while cash > buffer:
-        month += 1
-        m_start = month_offset(today, month - 1)
-        m_end = month_end(m_start)
-
-        if not quiet:
-            print(f"--- {m_start.year}-{m_start.month:02d} ---")
-            print(f"  月初现金: {cash:.0f}万元")
+        m += 1
+        ms = month_offset(today, m - 1)
+        me = month_end(ms)
 
         incoming = 0
+        details = []
         while rcv_idx < len(recvs):
             r = recvs[rcv_idx]
             arr = today + timedelta(days=r["due_days"] + delay)
-            if arr <= m_end:
+            if arr <= me:
                 incoming += r["amount"]
-                risk = r.get("delay_risk", 0)
-                risk_str = f"(延迟概率{risk:.0%})" if risk > 0 and not quiet else ""
-                if not quiet:
-                    print(f"  + {r['label']} {r['amount']}万元 {risk_str}")
+                details.append(r)
                 rcv_idx += 1
             else:
                 break
@@ -84,68 +77,114 @@ def project(scenario: dict, delay: int = 0, start: date = None, quiet: bool = Fa
         cash += incoming
         cash -= monthly
 
+        months.append({
+            "month": f"{ms.year}-{ms.month:02d}",
+            "start_cash": round(cash + monthly - incoming, 1),
+            "incoming": incoming,
+            "expense": monthly,
+            "end_cash": round(cash, 1),
+            "gap": round(cash - buffer, 1),
+        })
+
         if cash <= 0:
-            if not quiet:
-                print(f"  月末现金: {cash:.0f}万元")
-                print(f"\n⚠️  第{month}个月 ({m_start.year}-{m_start.month}) 现金断裂！")
-            return month, True
+            return months, m
 
-        if not quiet:
-            gap = cash - buffer
-            print(f"  月末现金: {cash:.0f}万元 (距储备线: {gap:.0f}万元)")
-            if gap <= monthly and gap > 0:
-                print(f"  → 预警：现金逼近储备线，需关注回款进度")
-            print()
-
-    if not quiet:
-        print(f"现金降至储备线({buffer}万元)以下，停止推演")
-    return month, False
+    return months, None
 
 
-def find_critical_delay(scenario: dict, start: date = None):
-    """找出让跑道开始缩短的最小延迟天数"""
-    normal_months, _ = project(scenario, delay=0, start=start, quiet=True)
-    lo, hi = 0, 365
-    while lo < hi:
-        mid = (lo + hi + 1) // 2
-        m, _ = project(scenario, delay=mid, start=start, quiet=True)
-        if m < normal_months:
-            hi = mid - 1
-        else:
-            lo = mid
-    return lo, normal_months
+def format_route(months, label="当前位置"):
+    """输出一段导航路线"""
+    if not months:
+        print("  (无数据)")
+        return
+
+    end = months[-1]["end_cash"]
+    broke = end <= 0
+
+    print(f"  ┌─────┬──────────┬────────┬────────┬────────┐")
+    print(f"  │ 月份 │ 期初现金 │ 进账   │ 支出   │ 期末   │")
+    print(f"  ├─────┼──────────┼────────┼────────┼────────┤")
+    for m in months:
+        inc = f"+{m['incoming']:.0f}" if m['incoming'] else "   -"
+        print(f"  │ {m['month']} │ {m['start_cash']:>6.0f}  │ {inc:>5} │ {m['expense']:.0f}    │ {m['end_cash']:>5.0f}  │")
+    print(f"  └─────┴──────────┴────────┴────────┴────────┘")
+
+    alert = months[-1]["gap"]
+    if broke:
+        tag = "⚠️ 断裂"
+        status = f"亏空 {-alert:.0f}万元"
+    elif alert <= 0:
+        tag = "⚠️ 断裂"
+        status = f"亏空 {-alert:.0f}万元"
+    elif alert <= 10:
+        tag = "⚡ 预警"
+        status = f"高于储备线 {alert:.0f}万元"
+    elif alert <= 30:
+        tag = "△ 关注"
+        status = f"高于储备线 {alert:.0f}万元"
+    else:
+        tag = "✓ 安全"
+        status = f"高于储备线 {alert:.0f}万元"
+
+    print(f"  → {label}: 期末 {end:.0f}万元 ({status}) {tag}")
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "--demo"
-    scenario = load_scenario(path)
+    args = [a for a in sys.argv[1:] if not a.startswith("--what-if")]
+    whatif = [a.split("+", 1)[1] for a in sys.argv[1:] if a.startswith("--what-if")]
+
+    scenario = load(args[0] if args else None)
     today = date.today()
 
-    print("=" * 55)
-    print("  量潮  |  现金流推演")
-    print("=" * 55)
+    print(f"╔{'═'*50}╗")
+    print(f"║  量潮 · 现金流导航")
+    print(f"║  当前位置: 现金{scenario['cash']}万  储备线{scenario.get('buffer',0)}万  月支出{scenario['monthly_expense']}万")
+    print(f"╚{'═'*50}╝")
 
-    # 正常情况
-    print("\n▶ 正常情况")
-    project(scenario, delay=0, start=today)
+    # 路线预览
+    months, broke_at = simulate(scenario)
+    print(f"\n▶ 前方路况 (按当前路线)")
+    format_route(months)
 
-    # 压力测试
-    print("\n▶ 压力测试")
-    critical, normal = find_critical_delay(scenario, start=today)
-    warn_date = today + timedelta(days=critical)
-    print(f"\n正常可维持: {normal}个月")
-    print(f"回款延迟 {critical}天 以上, 跑道开始缩短")
-    print(f"最晚行动日期: {warn_date}")
-    print(f"(若到 {warn_date} 仍未回款, 必须采取措施)")
+    # 预警
+    print(f"\n▶ 实时预警")
+    critical, normal = find_critical_delay(scenario)
+    warn = today + timedelta(days=critical)
+    print(f"  正常续航: {normal}个月")
+    print(f"  回款延迟警戒线: {critical}天")
+    print(f"  最晚行动日: {warn}")
+    print(f"  → 若到 {warn} 还没回款, 必须调整路线")
 
-    # 风险项
-    print("\n▶ 高风险回款")
+    # 高风险回款
     high = [r for r in scenario["receivables"] if r.get("delay_risk", 0) > 0.2]
     if high:
+        print(f"\n▶ 前方风险点")
         for r in high:
-            print(f"  ⚠ {r['label']} {r['amount']}万元 延迟概率{r.get('delay_risk',0):.0%}")
-    else:
-        print("  (未标记延迟概率)")
+            print(f"  ⚠ {r['label']} {r['amount']}万 (延迟概率{r.get('delay_risk',0):.0%}, 预计{r['due_days']}天后到)")
+
+    # 如果…会怎样
+    if whatif:
+        print(f"\n▶ 如果: {whatif[0]}")
+        try:
+            extra_delay = int(whatif[0].replace("延迟", "").replace("天", ""))
+            months2, _ = simulate(scenario, delay=extra_delay)
+            format_route(months2, label="如果路线")
+        except:
+            print("  (暂只支持'+延迟N天'格式)")
+
+
+def find_critical_delay(scenario: dict, start: date = None):
+    normal, _ = simulate(scenario, start=start, quiet=True)
+    nm = len(normal)
+    lo, hi = 0, 365
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        m, _ = simulate(scenario, delay=mid, start=start, quiet=True)
+        if len(m) < nm:
+            hi = mid - 1
+        else:
+            lo = mid
+    return lo, nm
 
 
 if __name__ == "__main__":
