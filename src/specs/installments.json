@@ -1,0 +1,11 @@
+{
+  "name": "分期收款",
+  "facts": [
+    {"subject": "服务合同", "amount": 90,
+     "time": {"cycle": "monthly", "start": "2026-08-01", "installments": 3},
+     "received": [1]}
+  ],
+  "triggers": [
+    {"when": "due_within", "days": 15, "do": "remind"}
+  ]
+}

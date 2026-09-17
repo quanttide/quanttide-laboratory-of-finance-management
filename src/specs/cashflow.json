@@ -1,0 +1,10 @@
+{
+  "name": "现金流导航",
+  "baseline": {"cash": 50, "buffer": 10, "monthly_expense": 30},
+  "facts": [
+    {"subject": "客户A回款", "amount": 40, "time": {"due_in_days": 15}, "delay_risk": 0.3},
+    {"subject": "客户B回款", "amount": 60, "time": {"due_in_days": 45}, "delay_risk": 0.1},
+    {"subject": "客户C回款", "amount": 30, "time": {"due_in_days": 75}, "delay_risk": 0.05}
+  ],
+  "triggers": []
+}

@@ -1,0 +1,21 @@
+{
+  "name": "超期催款",
+  "facts": [
+    {"subject": "客户A货款", "amount": 40, "owner": "业务甲",
+     "time": {"invoiced_on": "2026-06-18", "credit_days": 60}, "reason": "追讨不紧"},
+    {"subject": "客户B货款", "amount": 25, "owner": "业务乙",
+     "time": {"invoiced_on": "2026-03-21", "credit_days": 90}, "reason": "信保覆盖"},
+    {"subject": "客户C货款", "amount": 30, "owner": "业务甲",
+     "time": {"invoiced_on": "2026-08-08", "credit_days": 30}, "reason": "追讨不紧"},
+    {"subject": "客户D货款", "amount": 35, "owner": "业务丙",
+     "time": {"invoiced_on": "2026-08-28", "credit_days": 60}},
+    {"subject": "客户E货款", "amount": 30, "owner": "业务丙",
+     "time": {"invoiced_on": "2026-04-06", "credit_days": 90}}
+  ],
+  "triggers": [
+    {"when": "due_within", "days": 15, "do": "remind"},
+    {"when": "overdue", "reason": "信保覆盖", "do": "claim"},
+    {"when": "overdue", "do": "dunning"},
+    {"when": "overdue", "do": "report"}
+  ]
+}
