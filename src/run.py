@@ -2,9 +2,9 @@
 """run — 运行一份规格。
 
 用法:
-  python3 src/run.py src/specs/dunning.json
-  python3 src/run.py src/specs/cashflow.json --today 2026-09-17
-  python3 src/run.py src/specs/cashflow.json --today 2026-09-17 --what-if 延迟30
+  python3 src/run.py data/specs/dunning.json
+  python3 src/run.py data/specs/cashflow.json --today 2026-09-17
+  python3 src/run.py data/specs/cashflow.json --today 2026-09-17 --what-if 延迟30
 """
 
 import argparse
